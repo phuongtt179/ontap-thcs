@@ -323,12 +323,16 @@ export default function LessonsPage() {
   const { topics: ALL_TOPICS } = useTopics()
   const [lessons, setLessons] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filterGrade, setFilterGrade] = useState('')
-  const [filterTopic, setFilterTopic] = useState('')
+  const [selectedGrade, setSelectedGrade] = useState('')
+  const [selectedTopic, setSelectedTopic] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [editLesson, setEditLesson] = useState(null)
 
   useEffect(() => { fetchLessons() }, [])
+
+  useEffect(() => {
+    if (GRADES.length > 0 && !selectedGrade) setSelectedGrade(GRADES[0])
+  }, [GRADES])
 
   async function fetchLessons() {
     setLoading(true)
@@ -337,15 +341,29 @@ export default function LessonsPage() {
     setLoading(false)
   }
 
-  const filteredTopicsForFilter = ALL_TOPICS.filter(
-    t => !filterGrade || t.grade === filterGrade || t.grade === 'all'
-  )
+  // Topics & lessons for selected grade
+  const gradeLessons = lessons.filter(l => !selectedGrade || l.grade === selectedGrade)
+  const topicsForGrade = ALL_TOPICS.filter(t => !selectedGrade || t.grade === selectedGrade || t.grade === 'all')
 
-  const displayedLessons = lessons.filter(l => {
-    if (filterGrade && l.grade !== filterGrade) return false
-    if (filterTopic && l.topic !== filterTopic) return false
-    return true
+  const topicList = topicsForGrade.map(t => t.name)
+  gradeLessons.forEach(l => {
+    const key = l.topic || '__no_topic__'
+    if (!topicList.includes(key)) topicList.push(key)
   })
+
+  // Auto-select first topic when grade/data changes
+  useEffect(() => {
+    setSelectedTopic(topicList[0] || null)
+  }, [selectedGrade, loading])
+
+  const grouped = {}
+  gradeLessons.forEach(l => {
+    const key = l.topic || '__no_topic__'
+    if (!grouped[key]) grouped[key] = []
+    grouped[key].push(l)
+  })
+
+  const selectedLessons = selectedTopic ? (grouped[selectedTopic] || []) : []
 
   async function handleDelete(id, title) {
     if (!confirm(`Xóa bài học "${title}"?`)) return
@@ -361,107 +379,126 @@ export default function LessonsPage() {
   }
 
   return (
-    <div className="p-4 md:p-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Bài học</h1>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-        >
-          <Plus size={16} /> Tạo bài học
-        </button>
+    <div className="flex flex-col md:flex-row md:h-[calc(100vh-64px)]">
+      {/* Left sidebar: grades + topics */}
+      <div className="md:w-72 shrink-0 bg-gray-50 border-b md:border-b-0 md:border-r border-gray-200 md:overflow-y-auto flex flex-col">
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between gap-2">
+          <div>
+            <h1 className="text-base font-bold text-gray-800">Bài học</h1>
+          </div>
+          <select
+            value={selectedGrade}
+            onChange={e => setSelectedGrade(e.target.value)}
+            className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {GRADES.map(g => <option key={g} value={g}>Khối {g}</option>)}
+          </select>
+        </div>
+        <div className="p-2 space-y-1 overflow-y-auto flex-1">
+          {topicList.length === 0 ? (
+            <p className="text-xs text-gray-400 px-3 py-4 text-center">Không có chủ đề nào</p>
+          ) : topicList.map(topicKey => {
+            const label = topicKey === '__no_topic__' ? 'Chưa phân loại' : topicKey
+            const count = (grouped[topicKey] || []).length
+            const isSelected = selectedTopic === topicKey
+            return (
+              <button
+                key={topicKey}
+                onClick={() => setSelectedTopic(topicKey)}
+                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition flex items-center justify-between gap-2
+                  ${isSelected ? 'bg-indigo-600 text-white font-medium' : 'text-gray-700 hover:bg-gray-200'}`}
+              >
+                <span className="line-clamp-2 leading-snug">{label}</span>
+                <span className={`text-xs shrink-0 px-1.5 py-0.5 rounded-full font-medium
+                  ${isSelected ? 'bg-indigo-500 text-indigo-100' : 'bg-gray-200 text-gray-500'}`}>
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-3 mb-5 flex-wrap">
-        <select
-          value={filterGrade}
-          onChange={e => { setFilterGrade(e.target.value); setFilterTopic('') }}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
-          <option value="">Tất cả khối</option>
-          {GRADES.map(g => <option key={g} value={g}>Khối {g}</option>)}
-        </select>
-        <select
-          value={filterTopic}
-          onChange={e => setFilterTopic(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
-          <option value="">Tất cả chủ đề</option>
-          {filteredTopicsForFilter.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
-        </select>
-      </div>
+      {/* Right: lesson list */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+            <span className="w-1 h-5 bg-indigo-500 rounded-full inline-block" />
+            {selectedTopic === '__no_topic__' ? 'Chưa phân loại' : selectedTopic || 'Chọn chủ đề'}
+          </h2>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition"
+          >
+            <Plus size={15} /> Tạo bài học
+          </button>
+        </div>
 
-      {loading ? (
-        <div className="flex justify-center py-16">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
-        </div>
-      ) : displayedLessons.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <p className="text-lg">Chưa có bài học nào</p>
-          <p className="text-sm mt-1">Bấm "Tạo bài học" để bắt đầu</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {displayedLessons.map(lesson => (
-            <div key={lesson.id} className="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-gray-800">{lesson.title}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${lesson.is_published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                    {lesson.is_published ? 'Đã xuất bản' : 'Nháp'}
-                  </span>
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+          </div>
+        ) : selectedLessons.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">
+            <BookOpen size={36} className="mx-auto mb-3 opacity-30" />
+            <p>Chưa có bài học nào trong chủ đề này</p>
+          </div>
+        ) : (
+          <div className="space-y-3 max-w-3xl">
+            {selectedLessons.map(lesson => (
+              <div key={lesson.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3.5 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-gray-800 text-sm">{lesson.title}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${lesson.is_published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {lesson.is_published ? 'Đã xuất bản' : 'Nháp'}
+                    </span>
+                  </div>
+                  <div className="flex gap-3 mt-1 text-xs text-gray-400 flex-wrap items-center">
+                    <span>{lesson.question_ids?.length || 0} câu hỏi</span>
+                    {lesson.video_url && (
+                      <span className="flex items-center gap-0.5 text-blue-500"><PlayCircle size={11} /> Video</span>
+                    )}
+                    {lesson.has_practice && (
+                      <span className="flex items-center gap-0.5 text-orange-500"><ClipboardList size={11} /> Thực hành</span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-3 mt-1 text-xs text-gray-400 flex-wrap items-center">
-                  <span>Khối {lesson.grade}</span>
-                  {lesson.topic && <span>· {lesson.topic}</span>}
-                  <span>· {lesson.question_ids?.length || 0} câu hỏi</span>
-                  {lesson.video_url && (
-                    <span className="flex items-center gap-0.5 text-blue-500">
-                      <PlayCircle size={11} /> Video
-                    </span>
-                  )}
-                  {lesson.has_practice && (
-                    <span className="flex items-center gap-0.5 text-orange-500">
-                      <ClipboardList size={11} /> Thực hành
-                    </span>
-                  )}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => handleTogglePublish(lesson)}
+                    title={lesson.is_published ? 'Ẩn bài học' : 'Xuất bản'}
+                    className={`p-1.5 rounded-lg transition ${lesson.is_published ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    {lesson.is_published ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                  </button>
+                  <button
+                    onClick={() => navigate(`/teacher/lessons/${lesson.id}/submissions`)}
+                    className="p-1.5 text-gray-400 hover:text-indigo-600 transition"
+                    title="Thống kê tiến độ"
+                  >
+                    <FileText size={15} />
+                  </button>
+                  <button
+                    onClick={() => setEditLesson(lesson)}
+                    className="p-1.5 text-gray-400 hover:text-indigo-600 transition"
+                    title="Sửa bài học"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(lesson.id, lesson.title)}
+                    className="p-1.5 text-red-400 hover:text-red-600 transition"
+                    title="Xóa bài học"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => handleTogglePublish(lesson)}
-                  title={lesson.is_published ? 'Ẩn bài học' : 'Xuất bản'}
-                  className={`p-2 rounded-lg transition ${lesson.is_published ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
-                >
-                  {lesson.is_published ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
-                </button>
-                <button
-                  onClick={() => navigate(`/teacher/lessons/${lesson.id}/submissions`)}
-                  className="p-2 text-gray-400 hover:text-indigo-600 transition"
-                  title="Xem bài nộp"
-                >
-                  <FileText size={16} />
-                </button>
-                <button
-                  onClick={() => setEditLesson(lesson)}
-                  className="p-2 text-gray-400 hover:text-indigo-600 transition"
-                  title="Sửa bài học"
-                >
-                  <Pencil size={14} />
-                </button>
-                <button
-                  onClick={() => handleDelete(lesson.id, lesson.title)}
-                  className="p-2 text-red-400 hover:text-red-600 transition"
-                  title="Xóa bài học"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
 
       {(showCreate || editLesson) && (
         <LessonFormModal
