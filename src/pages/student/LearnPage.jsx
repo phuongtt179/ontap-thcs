@@ -20,6 +20,7 @@ export default function LearnPage() {
   const navigate = useNavigate()
   const { profile, user } = useAuth()
   const [lessons, setLessons] = useState([])
+  const [topics, setTopics] = useState([])
   const [progressMap, setProgressMap] = useState({})
   const [loading, setLoading] = useState(true)
   const [selectedTopic, setSelectedTopic] = useState(null)
@@ -30,7 +31,11 @@ export default function LearnPage() {
 
   async function loadData() {
     setLoading(true)
-    const [{ data: lessonsData }, { data: progressData }] = await Promise.all([
+    const [{ data: topicsData }, { data: lessonsData }, { data: progressData }] = await Promise.all([
+      supabase.from('topics')
+        .select('*')
+        .or(`grade.eq.${profile.grade},grade.eq.all`)
+        .order('name'),
       supabase.from('lessons')
         .select('*')
         .eq('is_published', true)
@@ -43,27 +48,31 @@ export default function LearnPage() {
 
     const list = lessonsData || []
     setLessons(list)
+    setTopics(topicsData || [])
 
     const map = {}
     ;(progressData || []).forEach(p => { map[p.lesson_id] = p })
     setProgressMap(map)
 
     // Chọn chủ đề đầu tiên mặc định
-    const firstTopic = list[0]?.topic || '__no_topic__'
+    const firstTopic = topicsData?.[0]?.name || list[0]?.topic || null
     setSelectedTopic(firstTopic)
     setLoading(false)
   }
 
-  // Group lessons by topic
+  // Group lessons by topic name
   const grouped = {}
-  const topicOrder = []
   ;(lessons || []).forEach(lesson => {
     const key = lesson.topic || '__no_topic__'
-    if (!grouped[key]) {
-      grouped[key] = []
-      topicOrder.push(key)
-    }
+    if (!grouped[key]) grouped[key] = []
     grouped[key].push(lesson)
+  })
+
+  // Topic list: all topics from DB + fallback for lessons with unknown topic
+  const topicList = topics.map(t => t.name)
+  ;(lessons || []).forEach(lesson => {
+    const key = lesson.topic || '__no_topic__'
+    if (!topicList.includes(key)) topicList.push(key)
   })
 
   if (loading) {
@@ -99,7 +108,7 @@ export default function LearnPage() {
           <p className="text-xs text-gray-400 mt-0.5">Khối {profile?.grade}</p>
         </div>
         <div className="p-2 space-y-1">
-          {topicOrder.map(topicKey => {
+          {topicList.map(topicKey => {
             const label = topicKey === '__no_topic__' ? 'Chưa phân loại' : topicKey
             const count = grouped[topicKey].length
             const isSelected = selectedTopic === topicKey
