@@ -327,6 +327,8 @@ export default function LessonsPage() {
   const [selectedTopic, setSelectedTopic] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
   const [editLesson, setEditLesson] = useState(null)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const touchStartX = { current: 0 }
 
   useEffect(() => { fetchLessons() }, [])
 
@@ -378,21 +380,24 @@ export default function LessonsPage() {
     else fetchLessons()
   }
 
-  return (
-    <div className="flex flex-col md:flex-row md:h-[calc(100vh-64px)]">
-      {/* Left sidebar: grades + topics */}
-      <div className="md:w-72 shrink-0 bg-gray-50 border-b md:border-b-0 md:border-r border-gray-200 md:overflow-y-auto flex flex-col">
+  function SidebarContent() {
+    return (
+      <>
         <div className="p-4 border-b border-gray-200 flex items-center justify-between gap-2">
-          <div>
-            <h1 className="text-base font-bold text-gray-800">Bài học</h1>
+          <h1 className="text-base font-bold text-gray-800">Bài học</h1>
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedGrade}
+              onChange={e => setSelectedGrade(e.target.value)}
+              className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {GRADES.map(g => <option key={g} value={g}>Khối {g}</option>)}
+            </select>
+            <button
+              className="md:hidden text-gray-400 hover:text-gray-600 p-1"
+              onClick={() => setMobileSidebarOpen(false)}
+            >✕</button>
           </div>
-          <select
-            value={selectedGrade}
-            onChange={e => setSelectedGrade(e.target.value)}
-            className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            {GRADES.map(g => <option key={g} value={g}>Khối {g}</option>)}
-          </select>
         </div>
         <div className="p-2 space-y-1 overflow-y-auto flex-1">
           {topicList.length === 0 ? (
@@ -404,7 +409,7 @@ export default function LessonsPage() {
             return (
               <button
                 key={topicKey}
-                onClick={() => setSelectedTopic(topicKey)}
+                onClick={() => { setSelectedTopic(topicKey); setMobileSidebarOpen(false) }}
                 className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition flex items-center justify-between gap-2
                   ${isSelected ? 'bg-indigo-600 text-white font-medium' : 'text-gray-700 hover:bg-gray-200'}`}
               >
@@ -417,12 +422,52 @@ export default function LessonsPage() {
             )
           })}
         </div>
+      </>
+    )
+  }
+
+  return (
+    <div
+      className="flex md:flex-row md:h-[calc(100vh-64px)] h-full"
+      onTouchStart={e => { touchStartX.current = e.touches[0].clientX }}
+      onTouchEnd={e => {
+        const dx = e.changedTouches[0].clientX - touchStartX.current
+        if (dx > 60 && touchStartX.current < 40) setMobileSidebarOpen(true)
+        if (dx < -60) setMobileSidebarOpen(false)
+      }}
+    >
+      {/* Mobile backdrop */}
+      {mobileSidebarOpen && (
+        <div className="md:hidden fixed inset-0 bg-black/40 z-30" onClick={() => setMobileSidebarOpen(false)} />
+      )}
+
+      {/* Sidebar — drawer on mobile, fixed on desktop */}
+      <div className={`
+        fixed md:static top-0 left-0 h-full md:h-auto z-40 md:z-auto
+        w-72 bg-gray-50 border-r border-gray-200 flex flex-col
+        transition-transform duration-300 ease-in-out
+        ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        md:w-72 shrink-0 md:overflow-y-auto
+      `}>
+        <SidebarContent />
       </div>
 
       {/* Right: lesson list */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 w-full">
+        {/* Mobile: topic selector button */}
+        <button
+          className="md:hidden flex items-center gap-2 mb-4 text-sm bg-white border border-gray-200 rounded-lg px-3 py-2 w-full text-left shadow-sm"
+          onClick={() => setMobileSidebarOpen(true)}
+        >
+          <span className="text-indigo-500 shrink-0">☰</span>
+          <span className="text-gray-500 text-xs">Chủ đề:</span>
+          <span className="font-medium text-gray-800 truncate">
+            {selectedTopic === '__no_topic__' ? 'Chưa phân loại' : selectedTopic || 'Chọn chủ đề'}
+          </span>
+        </button>
+
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+          <h2 className="hidden md:flex text-base font-bold text-gray-800 items-center gap-2">
             <span className="w-1 h-5 bg-indigo-500 rounded-full inline-block" />
             {selectedTopic === '__no_topic__' ? 'Chưa phân loại' : selectedTopic || 'Chọn chủ đề'}
           </h2>
