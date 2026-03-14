@@ -1,28 +1,39 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { useSubjects } from '../../hooks/useSubjects'
 import QuizSession from '../../components/student/QuizSession'
 import toast from 'react-hot-toast'
 import { Clock, PlayCircle, CheckCircle } from 'lucide-react'
 
 export default function StudentExamsPage() {
   const { profile, user } = useAuth()
+  const { subjects } = useSubjects()
+  const [filterSubject, setFilterSubject] = useState('')
   const [exams, setExams] = useState([])
   const [attemptsMap, setAttemptsMap] = useState({})
   const [loading, setLoading] = useState(true)
   const [activeExam, setActiveExam] = useState(null)
 
+  // Set default subject filter when subjects load
   useEffect(() => {
-    if (profile) loadExams()
-  }, [profile])
+    if (subjects.length > 0 && !filterSubject) {
+      setFilterSubject(subjects[0].id)
+    }
+  }, [subjects])
+
+  useEffect(() => {
+    if (profile && subjects.length > 0) loadExams()
+  }, [profile, filterSubject, subjects])
 
   async function loadExams() {
     setLoading(true)
     let q = supabase.from('exams').select('*').eq('is_active', true).eq('grade', profile.grade)
-    if (profile.class_name) {
-      q = q.or(`class_names.is.null,class_names.cs.{"${profile.class_name}"}`)
+    if (filterSubject) {
+      q = q.eq('subject_id', filterSubject)
     } else {
-      q = q.is('class_names', null)
+      const ids = subjects.map(s => s.id)
+      if (ids.length > 0) q = q.in('subject_id', ids)
     }
     const { data: examData } = await q.order('created_at', { ascending: false })
 
@@ -71,10 +82,24 @@ export default function StudentExamsPage() {
 
   return (
     <div className="p-4 md:p-8">
-      <h1 className="text-2xl font-bold text-gray-800 mb-2">Đề thi</h1>
-      <p className="text-gray-500 mb-6">
-        {profile?.class_name ? `Lớp ${profile.class_name}` : `Khối ${profile?.grade}`} — Các đề thi đang mở
-      </p>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Đề thi</h1>
+        <p className="text-gray-500 text-sm mt-0.5">Khối {profile?.grade} — Các đề thi đang mở</p>
+      </div>
+
+      {/* Subject filter */}
+      {subjects.length > 0 && (
+        <div className="flex gap-2 mb-6 flex-wrap">
+          <select
+            value={filterSubject}
+            onChange={e => setFilterSubject(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">Tất cả môn</option>
+            {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-16">
@@ -83,7 +108,7 @@ export default function StudentExamsPage() {
       ) : exams.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <p className="text-lg">Chưa có đề thi nào</p>
-          <p className="text-sm mt-1">Giáo viên chưa mở đề thi cho lớp bạn</p>
+          <p className="text-sm mt-1">Giáo viên chưa mở đề thi cho khối bạn</p>
         </div>
       ) : (
         <div className="space-y-3 max-w-xl">

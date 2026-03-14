@@ -16,6 +16,7 @@ import ExamResultsPage from './pages/teacher/ExamResultsPage'
 import LessonsPage from './pages/teacher/LessonsPage'
 import LessonSubmissionsPage from './pages/teacher/LessonSubmissionsPage'
 import SubjectsPage from './pages/admin/SubjectsPage'
+import UsersPage from './pages/admin/UsersPage'
 import StudentDashboard from './pages/student/StudentDashboard'
 import PracticePage from './pages/student/PracticePage'
 import HistoryPage from './pages/student/HistoryPage'
@@ -93,6 +94,11 @@ export default function App() {
           <Route path="/admin/subjects" element={
             <ProtectedRoute roles={['admin']}>
               <Layout><SubjectsPage /></Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/users" element={
+            <ProtectedRoute roles={['admin']}>
+              <Layout><UsersPage /></Layout>
             </ProtectedRoute>
           } />
 

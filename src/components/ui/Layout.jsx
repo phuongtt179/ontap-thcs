@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import {
   BookOpen, LogOut, LayoutDashboard, PenSquare, ClipboardList,
   BarChart2, Tags, GraduationCap, Menu, X, TableProperties,
-  BookMarked, Layers,
+  BookMarked, Layers, Users,
 } from 'lucide-react'
 
 export default function Layout({ children }) {
@@ -27,9 +27,12 @@ export default function Layout({ children }) {
     { to: '/teacher/exams', icon: <ClipboardList size={18} />, label: 'Đề thi' },
     { to: '/teacher/exam-stats', icon: <TableProperties size={18} />, label: 'Thống kê' },
     { to: '/teacher/lessons', icon: <BookMarked size={18} />, label: 'Bài học' },
-    null,
-    { to: '/teacher/grades', icon: <GraduationCap size={18} />, label: 'Khối' },
-    ...(isAdmin ? [{ to: '/admin/subjects', icon: <Layers size={18} />, label: 'Môn học' }] : []),
+    ...(isAdmin ? [
+      null,
+      { to: '/teacher/grades', icon: <GraduationCap size={18} />, label: 'Khối' },
+      { to: '/admin/subjects', icon: <Layers size={18} />, label: 'Môn học' },
+      { to: '/admin/users', icon: <Users size={18} />, label: 'Người dùng' },
+    ] : []),
   ]
 
   const studentItems = [
@@ -99,7 +102,7 @@ export default function Layout({ children }) {
       </header>
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-56 bg-indigo-700 text-white flex-col shrink-0">
+      <aside className="hidden md:flex w-56 bg-indigo-700 text-white flex-col shrink-0 h-screen sticky top-0">
         <div className="flex items-center gap-2 px-5 py-5 border-b border-indigo-600">
           <BookOpen size={22} />
           <span className="font-bold text-lg">Ôn Tập</span>

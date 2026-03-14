@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useGrades } from '../../hooks/useGrades'
 import { X, Loader2, Eye, ChevronRight } from 'lucide-react'
-
-const GRADES = ['3', '4', '5']
 
 /* ── StudentDetailModal ─────────────────────────────────── */
 function StudentDetailModal({ student, exams, sessions, onClose }) {
@@ -130,9 +129,8 @@ function StudentDetailModal({ student, exams, sessions, onClose }) {
 
 /* ── ExamStatsPage ──────────────────────────────────────── */
 export default function ExamStatsPage() {
-  const [filterGrade, setFilterGrade] = useState('3')
-  const [filterClass, setFilterClass] = useState('')
-  const [classes, setClasses] = useState([])
+  const { grades: gradeValues } = useGrades()
+  const [filterGrade, setFilterGrade] = useState('')
   const [exams, setExams] = useState([])
   const [students, setStudents] = useState([])
   const [sessions, setSessions] = useState([])
@@ -140,28 +138,19 @@ export default function ExamStatsPage() {
   const [selectedStudent, setSelectedStudent] = useState(null)
 
   useEffect(() => {
-    setFilterClass('')
-    supabase.from('classes').select('name').eq('grade', filterGrade).order('name')
-      .then(({ data }) => setClasses(data?.map(c => c.name) || []))
-  }, [filterGrade])
+    if (gradeValues.length > 0 && !filterGrade) setFilterGrade(gradeValues[0])
+  }, [gradeValues])
 
-  useEffect(() => { fetchData() }, [filterGrade, filterClass])
+  useEffect(() => { if (filterGrade) fetchData() }, [filterGrade])
 
   async function fetchData() {
     setLoading(true)
     const [examRes, studentRes] = await Promise.all([
-      supabase.from('exams').select('id, title, question_ids, class_name').eq('grade', filterGrade).order('created_at'),
-      filterClass
-        ? supabase.from('profiles').select('id, full_name, class_name').eq('role', 'student').eq('grade', filterGrade).eq('class_name', filterClass).order('full_name')
-        : supabase.from('profiles').select('id, full_name, class_name').eq('role', 'student').eq('grade', filterGrade).order('class_name').order('full_name'),
+      supabase.from('exams').select('id, title, question_ids').eq('grade', filterGrade).order('created_at'),
+      supabase.from('profiles').select('id, full_name').eq('role', 'student').eq('grade', filterGrade).order('full_name'),
     ])
 
-    const allExams = examRes.data || []
-    const filteredExams = filterClass
-      ? allExams.filter(e => !e.class_names?.length || e.class_names.includes(filterClass))
-      : allExams
-
-    const examIds = filteredExams.map(e => e.id)
+    const examIds = (examRes.data || []).map(e => e.id)
     let sessionData = []
     if (examIds.length > 0) {
       const { data } = await supabase.from('quiz_sessions')
@@ -170,7 +159,7 @@ export default function ExamStatsPage() {
       sessionData = data || []
     }
 
-    setExams(filteredExams)
+    setExams(examRes.data || [])
     setStudents(studentRes.data || [])
     setSessions(sessionData)
     setLoading(false)
@@ -186,25 +175,17 @@ export default function ExamStatsPage() {
 
   return (
     <div className="p-4 md:p-8">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Thống kê theo lớp</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">Thống kê kết quả</h1>
 
-      <div className="flex gap-3 mb-6">
+      <div className="flex gap-3 mb-6 flex-wrap">
         <select
           value={filterGrade}
           onChange={e => setFilterGrade(e.target.value)}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          {GRADES.map(g => <option key={g} value={g}>Khối {g}</option>)}
+          {gradeValues.map(g => <option key={g} value={g}>Khối {g}</option>)}
         </select>
-        <select
-          value={filterClass}
-          onChange={e => setFilterClass(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
-          <option value="">Tất cả lớp</option>
-          {classes.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-        {!loading && (
+        {!loading && filterGrade && (
           <span className="text-gray-500 text-sm self-center">
             {students.length} học sinh · {exams.length} đề
           </span>
@@ -217,7 +198,7 @@ export default function ExamStatsPage() {
         </div>
       ) : exams.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
-          Không có đề thi nào cho khối {filterGrade}{filterClass ? ` lớp ${filterClass}` : ''}
+          Không có đề thi nào cho khối {filterGrade}
         </div>
       ) : students.length === 0 ? (
         <div className="text-center py-16 text-gray-400">Không có học sinh nào</div>
@@ -249,9 +230,6 @@ export default function ExamStatsPage() {
                         <div className="font-medium text-gray-800 group-hover:text-indigo-600 transition text-sm">
                           {student.full_name}
                         </div>
-                        {student.class_name && (
-                          <div className="text-xs text-gray-400">{student.class_name}</div>
-                        )}
                       </div>
                       <ChevronRight size={13} className="text-gray-300 group-hover:text-indigo-400 transition shrink-0" />
                     </button>

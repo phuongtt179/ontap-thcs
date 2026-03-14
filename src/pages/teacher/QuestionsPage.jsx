@@ -28,14 +28,20 @@ export default function QuestionsPage() {
     }
   }, [subjects])
 
-  useEffect(() => { fetchQuestions() }, [filterGrade, filterTopic, filterSubject])
+  useEffect(() => { if (subjects.length > 0) fetchQuestions() }, [filterGrade, filterTopic, filterSubject, subjects])
 
   async function fetchQuestions() {
     setLoading(true)
     let query = supabase.from('questions').select('*').order('created_at', { ascending: false })
     if (filterGrade) query = query.eq('grade', filterGrade)
     if (filterTopic) query = query.eq('topic', filterTopic)
-    if (filterSubject) query = query.eq('subject_id', filterSubject)
+    if (filterSubject) {
+      query = query.eq('subject_id', filterSubject)
+    } else {
+      // Restrict to assigned subjects only
+      const ids = subjects.map(s => s.id)
+      query = query.in('subject_id', ids)
+    }
     const { data, error } = await query
     if (error) toast.error('Lỗi tải câu hỏi')
     else setQuestions(data || [])
@@ -48,7 +54,12 @@ export default function QuestionsPage() {
     else { toast.success('Đã xóa'); fetchQuestions() }
   }
 
-  const topicNames = topics.map(t => t.name)
+  const assignedSubjectIds = new Set(subjects.map(s => s.id))
+  const topicNames = topics.filter(t =>
+    assignedSubjectIds.has(t.subject_id) &&
+    (!filterGrade || t.grade === filterGrade) &&
+    (!filterSubject || t.subject_id === filterSubject)
+  ).map(t => t.name)
 
   return (
     <div className="p-4 md:p-8">
@@ -75,7 +86,7 @@ export default function QuestionsPage() {
         {subjects.length > 0 && (
           <select
             value={filterSubject}
-            onChange={e => setFilterSubject(e.target.value)}
+            onChange={e => { setFilterSubject(e.target.value); setFilterTopic('') }}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">Tất cả môn</option>
@@ -84,7 +95,7 @@ export default function QuestionsPage() {
         )}
         <select
           value={filterGrade}
-          onChange={e => setFilterGrade(e.target.value)}
+          onChange={e => { setFilterGrade(e.target.value); setFilterTopic('') }}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">Tất cả khối</option>

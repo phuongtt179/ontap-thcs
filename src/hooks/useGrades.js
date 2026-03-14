@@ -8,8 +8,8 @@ export function useGrades() {
   useEffect(() => { fetch() }, [])
 
   async function fetch() {
-    const { data } = await supabase.from('grades').select('value').order('value')
-    setGrades(data?.map(g => g.value) || [])
+    const { data } = await supabase.from('grades').select('name').order('name')
+    setGrades(data?.map(g => g.name) || [])
     setLoading(false)
   }
 

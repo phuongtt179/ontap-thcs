@@ -30,6 +30,12 @@ export function AuthProvider({ children }) {
       .select('*')
       .eq('id', userId)
       .single()
+    if (data?.is_active === false) {
+      await supabase.auth.signOut()
+      setProfile(null)
+      setLoading(false)
+      return
+    }
     setProfile(data)
     setLoading(false)
   }

@@ -1,13 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useTopics } from '../../hooks/useTopics'
+import { useSubjects } from '../../hooks/useSubjects'
 import QuizSession from '../../components/student/QuizSession'
 import toast from 'react-hot-toast'
 
 export default function PracticePage() {
   const { profile } = useAuth()
   const { topics } = useTopics()
+  const { subjects } = useSubjects()
+  const [filterSubject, setFilterSubject] = useState('')
   const [config, setConfig] = useState({
     topics: [],
     count: 10,
@@ -16,7 +19,22 @@ export default function PracticePage() {
   const [questions, setQuestions] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  const gradeTopics = topics.filter(t => t.grade === profile?.grade || t.grade === 'all')
+  // Set default subject when subjects load
+  useEffect(() => {
+    if (subjects.length > 0 && !filterSubject) {
+      setFilterSubject(subjects[0].id)
+    }
+  }, [subjects])
+
+  // Reset selected topics when subject changes
+  useEffect(() => {
+    setConfig(c => ({ ...c, topics: [] }))
+  }, [filterSubject])
+
+  const gradeTopics = topics.filter(t =>
+    (t.grade === profile?.grade || t.grade === 'all') &&
+    (filterSubject ? t.subject_id === filterSubject : true)
+  )
 
   function toggleTopic(name) {
     setConfig(c => ({
@@ -32,6 +50,12 @@ export default function PracticePage() {
     let query = supabase.from('questions').select('*').eq('grade', profile?.grade)
     if (config.topics.length > 0) query = query.in('topic', config.topics)
     if (config.difficulty) query = query.eq('difficulty', config.difficulty)
+    if (filterSubject) {
+      query = query.eq('subject_id', filterSubject)
+    } else {
+      const ids = subjects.map(s => s.id)
+      if (ids.length > 0) query = query.in('subject_id', ids)
+    }
 
     const { data, error } = await query
     if (error || !data?.length) {
@@ -58,7 +82,26 @@ export default function PracticePage() {
   return (
     <div className="p-4 md:p-8 max-w-lg">
       <h1 className="text-2xl font-bold text-gray-800 mb-2">Luyện tập</h1>
-      <p className="text-gray-500 mb-8">Khối {profile?.grade} — Chọn chủ đề và số câu để bắt đầu</p>
+      <p className="text-gray-500 mb-6">Khối {profile?.grade} — Chọn chủ đề và số câu để bắt đầu</p>
+
+      {/* Subject filter */}
+      {subjects.length > 0 && (
+        <div className="flex gap-2 mb-5 flex-wrap">
+          {subjects.map(s => (
+            <button
+              key={s.id}
+              onClick={() => setFilterSubject(s.id)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
+                filterSubject === s.id
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
         {/* Topic multi-select */}
@@ -75,11 +118,13 @@ export default function PracticePage() {
             )}
           </div>
           <div className="space-y-1">
-            {gradeTopics.map(t => {
+            {gradeTopics.length === 0 ? (
+              <p className="text-sm text-gray-400 py-2">Không có chủ đề nào</p>
+            ) : gradeTopics.map(t => {
               const selected = config.topics.includes(t.name)
               return (
                 <button
-                  key={t.name}
+                  key={t.id}
                   type="button"
                   onClick={() => toggleTopic(t.name)}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition text-left ${

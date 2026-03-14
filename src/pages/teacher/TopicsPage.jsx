@@ -2,23 +2,19 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTopics } from '../../hooks/useTopics'
 import { useSubjects } from '../../hooks/useSubjects'
+import { useGrades } from '../../hooks/useGrades'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
-
-const GRADES = [
-  { value: 'all', label: 'Tất cả khối' },
-  { value: '3', label: 'Khối 3' },
-  { value: '4', label: 'Khối 4' },
-  { value: '5', label: 'Khối 5' },
-]
 
 export default function TopicsPage() {
   const { topics, loading, refetch } = useTopics()
   const { subjects } = useSubjects()
+  const { grades: gradeValues } = useGrades()
+  const GRADES = [{ value: 'all', label: 'Tất cả khối' }, ...gradeValues.map(g => ({ value: g, label: `Khối ${g}` }))]
   const [filterGrade, setFilterGrade] = useState('all')
   const [filterSubject, setFilterSubject] = useState('')
   const [newName, setNewName] = useState('')
-  const [newGrade, setNewGrade] = useState('all')
+  const [newGrade, setNewGrade] = useState('')
   const [newSubjectId, setNewSubjectId] = useState('')
   const [adding, setAdding] = useState(false)
   const [editId, setEditId] = useState(null)
@@ -33,14 +29,22 @@ export default function TopicsPage() {
     }
   }, [subjects])
 
+  // Set default grade when grades load
+  useEffect(() => {
+    if (gradeValues.length > 0 && !newGrade) {
+      setNewGrade(gradeValues[0])
+    }
+  }, [gradeValues])
+
   // Pre-fill new subject when filterSubject changes
   useEffect(() => {
     setNewSubjectId(filterSubject)
   }, [filterSubject])
 
+  const assignedSubjectIds = new Set(subjects.map(s => s.id))
   const displayed = topics.filter(t => {
     const gradeOk = filterGrade === 'all' || t.grade === filterGrade
-    const subjectOk = !filterSubject || t.subject_id === filterSubject
+    const subjectOk = filterSubject ? t.subject_id === filterSubject : assignedSubjectIds.has(t.subject_id)
     return gradeOk && subjectOk
   })
 

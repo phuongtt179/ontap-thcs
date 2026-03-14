@@ -10,7 +10,7 @@ export default function StudentDashboard() {
       <h1 className="text-2xl font-bold text-gray-800 mb-2">
         Xin chào, {profile?.full_name}!
       </h1>
-      <p className="text-gray-500 mb-8">Lớp {profile?.grade} — Hôm nay ôn bài gì nhỉ?</p>
+      <p className="text-gray-500 mb-8">Khối {profile?.grade} — Hôm nay ôn bài gì nhỉ?</p>
 
       <div className="grid grid-cols-2 gap-3 md:gap-4 max-w-xl">
         <Link

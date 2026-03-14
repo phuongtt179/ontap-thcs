@@ -19,9 +19,8 @@ function ExamFormModal({ exam, onClose, onDone, defaultSubjectId }) {
   const [step, setStep] = useState(1)
   const [form, setForm] = useState({
     title: exam?.title || '',
-    grade: exam?.grade || '3',
+    grade: exam?.grade || '',
     subject_id: exam?.subject_id || defaultSubjectId || '',
-    class_names: exam?.class_names || [],
     time_limit: exam?.time_limit ?? 30,
     max_attempts: exam?.max_attempts ?? 1,
     is_active: exam?.is_active ?? false,
@@ -29,7 +28,6 @@ function ExamFormModal({ exam, onClose, onDone, defaultSubjectId }) {
     show_score: exam?.show_score ?? true,
     question_ids: exam?.question_ids || [],
   })
-  const [classes, setClasses] = useState([])
   const [questions, setQuestions] = useState([])
   const [topics, setTopics] = useState([])
   const [filterTopic, setFilterTopic] = useState('')
@@ -39,9 +37,8 @@ function ExamFormModal({ exam, onClose, onDone, defaultSubjectId }) {
   const [loadingQ, setLoadingQ] = useState(false)
 
   useEffect(() => {
-    supabase.from('classes').select('name').eq('grade', form.grade).order('name')
-      .then(({ data }) => setClasses(data?.map(c => c.name) || []))
-  }, [form.grade])
+    if (GRADES.length > 0 && !form.grade) setForm(f => ({ ...f, grade: GRADES[0] }))
+  }, [GRADES])
 
   useEffect(() => {
     if (step !== 2) return
@@ -86,7 +83,6 @@ function ExamFormModal({ exam, onClose, onDone, defaultSubjectId }) {
       title: form.title.trim(),
       grade: form.grade,
       subject_id: form.subject_id || null,
-      class_names: form.class_names.length > 0 ? form.class_names : null,
       time_limit: form.time_limit || null,
       max_attempts: form.max_attempts,
       is_active: form.is_active,
@@ -147,47 +143,10 @@ function ExamFormModal({ exam, onClose, onDone, defaultSubjectId }) {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Khối</label>
                   <select value={form.grade}
-                    onChange={e => setForm({ ...form, grade: e.target.value, class_names: [] })}
+                    onChange={e => setForm({ ...form, grade: e.target.value })}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     {GRADES.map(g => <option key={g} value={g}>Khối {g}</option>)}
                   </select>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-sm font-medium text-gray-700">
-                    Lớp <span className="text-gray-400 font-normal">(tuỳ chọn — không chọn = tất cả lớp)</span>
-                  </label>
-                  {form.class_names.length > 0 && (
-                    <button type="button" onClick={() => setForm(f => ({ ...f, class_names: [] }))}
-                      className="text-xs text-gray-400 hover:text-gray-600">Bỏ chọn</button>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {classes.map(c => {
-                    const selected = form.class_names.includes(c)
-                    return (
-                      <button key={c} type="button"
-                        onClick={() => setForm(f => ({
-                          ...f,
-                          class_names: selected
-                            ? f.class_names.filter(x => x !== c)
-                            : [...f.class_names, c],
-                        }))}
-                        className={`px-3 py-1 rounded-full text-sm border-2 transition font-medium ${
-                          selected
-                            ? 'bg-indigo-600 border-indigo-600 text-white'
-                            : 'border-gray-200 text-gray-600 hover:border-indigo-300'
-                        }`}
-                      >
-                        {c}
-                      </button>
-                    )
-                  })}
-                  {classes.length === 0 && (
-                    <p className="text-xs text-gray-400">Chưa có lớp nào cho khối {form.grade}</p>
-                  )}
                 </div>
               </div>
 
@@ -345,7 +304,7 @@ function ExamResultsModal({ exam, onClose }) {
 
   useEffect(() => {
     supabase.from('quiz_sessions')
-      .select('*, profiles(full_name, class_name)')
+      .select('*, profiles(full_name)')
       .eq('exam_id', exam.id)
       .order('submitted_at', { ascending: false })
       .then(({ data }) => { setSessions(data || []); setLoading(false) })
@@ -384,7 +343,7 @@ function ExamResultsModal({ exam, onClose }) {
               <div className="bg-indigo-50 rounded-xl p-4">
                 <p className="font-semibold text-gray-800">{detail.session.profiles?.full_name}</p>
                 <p className="text-sm text-gray-500 mt-0.5">
-                  Lớp {detail.session.profiles?.class_name} · Lần {detail.session.attempt_number} ·
+                  Lần {detail.session.attempt_number} ·
                   Điểm: <strong className="text-indigo-700">{detail.session.score}</strong> ·
                   {detail.session.correct}/{detail.session.total} câu đúng
                 </p>
@@ -418,7 +377,7 @@ function ExamResultsModal({ exam, onClose }) {
                   <div key={s.id} className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-800">{s.profiles?.full_name}</p>
-                      <p className="text-xs text-gray-400">{s.profiles?.class_name} · {date} · Lần {s.attempt_number}</p>
+                      <p className="text-xs text-gray-400">{date} · Lần {s.attempt_number}</p>
                     </div>
                     <div className="text-right shrink-0">
                       <p className={`text-lg font-bold ${percent >= 70 ? 'text-green-600' : 'text-orange-500'}`}>{s.score}</p>
@@ -455,12 +414,17 @@ export default function ExamsPage() {
     }
   }, [subjects])
 
-  useEffect(() => { fetchExams() }, [filterSubject])
+  useEffect(() => { if (subjects.length > 0) fetchExams() }, [filterSubject, subjects])
 
   async function fetchExams() {
     setLoading(true)
     let query = supabase.from('exams').select('*').order('created_at', { ascending: false })
-    if (filterSubject) query = query.eq('subject_id', filterSubject)
+    if (filterSubject) {
+      query = query.eq('subject_id', filterSubject)
+    } else {
+      const ids = subjects.map(s => s.id)
+      if (ids.length > 0) query = query.in('subject_id', ids)
+    }
     const { data } = await query
     setExams(data || [])
     setLoading(false)
@@ -525,7 +489,6 @@ export default function ExamsPage() {
                 </div>
                 <div className="flex gap-3 mt-1 text-xs text-gray-400 flex-wrap">
                   <span>Khối {exam.grade}</span>
-                  {exam.class_names?.length > 0 && <span>· Lớp {exam.class_names.join(', ')}</span>}
                   <span>· {exam.question_ids?.length || 0} câu</span>
                   <span>· {exam.time_limit ? `${exam.time_limit} phút` : 'Không giới hạn giờ'}</span>
                   <span>· {exam.max_attempts === 0 ? 'Không giới hạn lần' : `${exam.max_attempts} lần làm`}</span>

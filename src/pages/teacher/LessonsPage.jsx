@@ -25,7 +25,7 @@ function LessonFormModal({ lesson, onClose, onDone, defaultSubjectId }) {
   const [step, setStep] = useState(1)
   const [form, setForm] = useState({
     title: lesson?.title || '',
-    grade: lesson?.grade || (GRADES[0] || '3'),
+    grade: lesson?.grade || '',
     subject_id: lesson?.subject_id || defaultSubjectId || '',
     topic: lesson?.topic || '',
     description: lesson?.description || '',
