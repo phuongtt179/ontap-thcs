@@ -1,30 +1,48 @@
+// ============================================================
+// RegisterPage.jsx — Trang đăng ký tài khoản mới
+// ------------------------------------------------------------
+// Luồng đăng ký:
+// 1. Người dùng điền form (tên, email, mật khẩu, vai trò)
+// 2. Bấm "Đăng ký" → gọi supabase.auth.signUp()
+// 3. Supabase tạo tài khoản + tự động tạo bản ghi trong bảng profiles
+//    (nhờ trigger đã cài sẵn trong database)
+// 4. Chuyển về trang đăng nhập
+// ============================================================
+
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 import { BookOpen } from 'lucide-react'
 
+// Danh sách khối cứng — chỉ dùng cho form đăng ký,
+// không cần lấy từ database vì đây là màn hình chưa đăng nhập
 const GRADES = ['6', '7', '8', '9']
 
 export default function RegisterPage() {
   const navigate = useNavigate()
+
+  // Tất cả dữ liệu form gom vào 1 state object để dễ quản lý
   const [form, setForm] = useState({
     full_name: '',
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'student',
-    grade: '6',
+    role: 'student',  // mặc định là học sinh
+    grade: '6',       // mặc định khối 6
   })
   const [loading, setLoading] = useState(false)
 
+  // Hàm tiện ích: cập nhật 1 trường trong form mà không xóa các trường khác
+  // Cú pháp: set('email', 'abc@gmail.com')
   function set(field, value) {
     setForm(prev => ({ ...prev, [field]: value }))
   }
 
   async function handleSubmit(e) {
-    e.preventDefault()
+    e.preventDefault() // ngăn trình duyệt reload trang
 
+    // Kiểm tra hợp lệ trước khi gửi lên server
     if (form.password.length < 6) {
       toast.error('Mật khẩu phải có ít nhất 6 ký tự')
       return
@@ -40,21 +58,26 @@ export default function RegisterPage() {
 
     setLoading(true)
     try {
+      // metadata: thông tin thêm gắn theo tài khoản Supabase Auth
+      // Supabase sẽ tự động đưa metadata này vào bảng profiles qua trigger
       const metadata = {
         full_name: form.full_name.trim(),
         role: form.role,
+        // Khối chỉ có ý nghĩa với học sinh, giáo viên để null
         grade: form.role === 'student' ? form.grade : null,
       }
 
+      // Gọi Supabase Auth để tạo tài khoản mới
       const { error } = await supabase.auth.signUp({
         email: form.email.trim(),
         password: form.password,
-        options: { data: metadata },
+        options: { data: metadata }, // kèm metadata vào
       })
 
-      if (error) throw error
+      if (error) throw error // nếu lỗi thì nhảy xuống catch
 
       toast.success('Đăng ký thành công! Vui lòng đăng nhập.')
+      // Chờ 2 giây để người dùng đọc thông báo rồi chuyển trang
       setTimeout(() => navigate('/login'), 2000)
     } catch (err) {
       toast.error(err.message || 'Đăng ký thất bại. Vui lòng thử lại.')
@@ -76,7 +99,7 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Full name */}
+          {/* Họ và tên */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Họ và tên
@@ -108,7 +131,7 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* Password */}
+          {/* Mật khẩu */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Mật khẩu
@@ -125,7 +148,7 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* Confirm password */}
+          {/* Xác nhận mật khẩu */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Xác nhận mật khẩu
@@ -141,7 +164,7 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* Role selection */}
+          {/* Chọn vai trò: học sinh hoặc giáo viên */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Vai trò
@@ -173,7 +196,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* Grade — only for students */}
+          {/* Chọn khối — chỉ hiện khi vai trò là học sinh */}
           {form.role === 'student' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -191,7 +214,7 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* Submit */}
+          {/* Nút đăng ký */}
           <button
             type="submit"
             disabled={loading}
@@ -201,7 +224,7 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        {/* Link back to login */}
+        {/* Link về trang đăng nhập */}
         <p className="text-center text-sm text-gray-500 mt-6">
           Đã có tài khoản?{' '}
           <Link

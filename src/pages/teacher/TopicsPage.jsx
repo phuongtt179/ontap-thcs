@@ -1,3 +1,11 @@
+// ============================================================
+// TopicsPage.jsx — Trang quản lý chủ đề (dành cho giáo viên)
+// ------------------------------------------------------------
+// Chức năng: Xem / Thêm / Sửa / Xóa chủ đề
+// Chủ đề là nhóm phân loại câu hỏi.
+// Ví dụ: Môn Toán - Khối 7 - chủ đề "Số nguyên"
+// ============================================================
+
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useTopics } from '../../hooks/useTopics'
@@ -7,55 +15,71 @@ import toast from 'react-hot-toast'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 
 export default function TopicsPage() {
+  // Lấy dữ liệu từ các hook — mỗi hook tự gọi Supabase và trả kết quả
   const { topics, loading, refetch } = useTopics()
-  const { subjects } = useSubjects()
-  const { grades: gradeValues } = useGrades()
+  const { subjects } = useSubjects()          // chỉ trả môn được phân công cho GV này
+  const { grades: gradeValues } = useGrades() // danh sách khối từ database
+
+  // Tạo mảng GRADES có thêm "Tất cả khối" ở đầu
+  // Cú pháp: [...arr1, ...arr2] = gộp 2 mảng thành 1
   const GRADES = [{ value: 'all', label: 'Tất cả khối' }, ...gradeValues.map(g => ({ value: g, label: `Khối ${g}` }))]
+
+  // --- State bộ lọc ---
   const [filterGrade, setFilterGrade] = useState('all')
   const [filterSubject, setFilterSubject] = useState('')
+
+  // --- State form thêm mới ---
   const [newName, setNewName] = useState('')
   const [newGrade, setNewGrade] = useState('')
   const [newSubjectId, setNewSubjectId] = useState('')
-  const [adding, setAdding] = useState(false)
-  const [editId, setEditId] = useState(null)
+  const [adding, setAdding] = useState(false) // đang hiện form thêm hay không?
+
+  // --- State chỉnh sửa inline ---
+  const [editId, setEditId] = useState(null)  // id chủ đề đang được sửa (null = không sửa cái nào)
   const [editName, setEditName] = useState('')
   const [editGrade, setEditGrade] = useState('all')
   const [editSubjectId, setEditSubjectId] = useState('')
 
-  // Set default subject filter when subjects load
+  // useEffect: chạy lại mỗi khi subjects thay đổi
+  // Khi danh sách môn load xong → tự chọn môn đầu tiên làm bộ lọc mặc định
   useEffect(() => {
     if (subjects.length > 0 && !filterSubject) {
       setFilterSubject(subjects[0].id)
     }
   }, [subjects])
 
-  // Set default grade when grades load
+  // Khi danh sách khối load xong → tự chọn khối đầu tiên cho form thêm mới
   useEffect(() => {
     if (gradeValues.length > 0 && !newGrade) {
       setNewGrade(gradeValues[0])
     }
   }, [gradeValues])
 
-  // Pre-fill new subject when filterSubject changes
+  // Khi đổi bộ lọc môn → đồng bộ môn mặc định trong form thêm mới
   useEffect(() => {
     setNewSubjectId(filterSubject)
   }, [filterSubject])
 
-  const assignedSubjectIds = new Set(subjects.map(s => s.id))
+  // Tính danh sách chủ đề cần hiển thị (lọc client-side từ mảng topics đã tải)
+  const assignedSubjectIds = new Set(subjects.map(s => s.id)) // Set tra nhanh hơn Array
   const displayed = topics.filter(t => {
     const gradeOk = filterGrade === 'all' || t.grade === filterGrade
+    // Lọc theo môn: nếu chọn môn cụ thể → đúng môn đó
+    //               nếu "tất cả môn" → chỉ lấy môn được phân công (không lấy môn khác GV)
     const subjectOk = filterSubject ? t.subject_id === filterSubject : assignedSubjectIds.has(t.subject_id)
     return gradeOk && subjectOk
   })
 
+  // Thêm chủ đề mới vào bảng topics trong database
   async function handleAdd() {
-    if (!newName.trim()) return
+    if (!newName.trim()) return // bỏ qua nếu tên rỗng
     const { error } = await supabase.from('topics').insert({
       name: newName.trim(),
       grade: newGrade,
-      subject_id: newSubjectId || null,
+      subject_id: newSubjectId || null, // null nếu không chọn môn
     })
     if (error) {
+      // Kiểm tra lỗi trùng tên (vi phạm ràng buộc unique trong database)
       toast.error(error.message.includes('unique') ? 'Chủ đề đã tồn tại' : 'Thêm thất bại')
     } else {
       toast.success('Đã thêm chủ đề')
@@ -63,30 +87,34 @@ export default function TopicsPage() {
       setNewGrade('all')
       setNewSubjectId(filterSubject)
       setAdding(false)
-      refetch()
+      refetch() // gọi lại hook để làm mới danh sách
     }
   }
 
+  // Cập nhật chủ đề đang sửa
   async function handleUpdate(id) {
     if (!editName.trim()) return
     const { error } = await supabase.from('topics').update({
       name: editName.trim(),
       grade: editGrade,
       subject_id: editSubjectId || null,
-    }).eq('id', id)
+    }).eq('id', id) // .eq('id', id) = WHERE id = ... trong SQL
     if (error) toast.error('Cập nhật thất bại')
     else { toast.success('Đã cập nhật'); setEditId(null); refetch() }
   }
 
+  // Xóa chủ đề khỏi database
   async function handleDelete(id, name) {
+    // Hỏi xác nhận trước — confirm() trả về true/false
     if (!confirm(`Xóa chủ đề "${name}"? Các câu hỏi thuộc chủ đề này sẽ không bị xóa.`)) return
     const { error } = await supabase.from('topics').delete().eq('id', id)
     if (error) toast.error('Xóa thất bại')
     else { toast.success('Đã xóa'); refetch() }
   }
 
+  // Điền thông tin hiện tại của topic vào form sửa
   function startEdit(topic) {
-    setEditId(topic.id)
+    setEditId(topic.id)       // đánh dấu đang sửa topic này
     setEditName(topic.name)
     setEditGrade(topic.grade)
     setEditSubjectId(topic.subject_id || '')
@@ -94,11 +122,13 @@ export default function TopicsPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-2xl">
+      {/* Tiêu đề + nút Thêm */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Chủ đề</h1>
           <p className="text-gray-400 text-sm mt-0.5">{displayed.length} chủ đề</p>
         </div>
+        {/* Ẩn nút khi đang hiện form thêm */}
         {!adding && (
           <button
             onClick={() => setAdding(true)}
@@ -109,9 +139,8 @@ export default function TopicsPage() {
         )}
       </div>
 
-      {/* Filters */}
+      {/* Bộ lọc: dropdown môn + nút tab khối */}
       <div className="flex gap-2 mb-5 flex-wrap">
-        {/* Subject filter */}
         {subjects.length > 0 && (
           <select
             value={filterSubject}
@@ -123,15 +152,15 @@ export default function TopicsPage() {
           </select>
         )}
 
-        {/* Grade filter tabs */}
+        {/* Render danh sách nút khối từ mảng GRADES */}
         {GRADES.map(g => (
           <button
             key={g.value}
             onClick={() => setFilterGrade(g.value)}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
               filterGrade === g.value
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'bg-indigo-600 text-white'      // đang chọn → màu tím
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200' // chưa chọn → xám
             }`}
           >
             {g.label}
@@ -139,14 +168,14 @@ export default function TopicsPage() {
         ))}
       </div>
 
-      {/* Add form */}
+      {/* Form thêm chủ đề — chỉ render khi adding = true */}
       {adding && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-4 flex items-center gap-3 flex-wrap">
           <input
-            autoFocus
+            autoFocus  // tự focus vào ô này khi form hiện ra
             value={newName}
             onChange={e => setNewName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAdd()}
+            onKeyDown={e => e.key === 'Enter' && handleAdd()} // gõ Enter = bấm nút Thêm
             placeholder="Tên chủ đề..."
             className="flex-1 min-w-32 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
@@ -176,8 +205,9 @@ export default function TopicsPage() {
         </div>
       )}
 
-      {/* Topic list */}
+      {/* Danh sách chủ đề */}
       {loading ? (
+        // Spinner (vòng tròn xoay) — hiện khi đang tải dữ liệu
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-indigo-600" />
         </div>
@@ -185,7 +215,9 @@ export default function TopicsPage() {
         <div className="space-y-2">
           {displayed.map(topic => (
             <div key={topic.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3">
+              {/* Điều kiện: nếu topic này đang được sửa → hiện form inline, ngược lại hiện dạng xem */}
               {editId === topic.id ? (
+                // === FORM SỬA INLINE ===
                 <>
                   <input
                     autoFocus
@@ -219,10 +251,12 @@ export default function TopicsPage() {
                   </button>
                 </>
               ) : (
+                // === CHẾ ĐỘ XEM ===
                 <>
                   <span className="flex-1 text-sm font-medium text-gray-800">{topic.name}</span>
                   {topic.subject_id && (
                     <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                      {/* Tìm tên môn học dựa vào subject_id — optional chaining ?. tránh lỗi null */}
                       {subjects.find(s => s.id === topic.subject_id)?.name || 'Môn học'}
                     </span>
                   )}
