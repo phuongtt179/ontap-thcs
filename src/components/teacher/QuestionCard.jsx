@@ -12,6 +12,7 @@ const TYPE_LABELS = {
   matching: 'Nối đôi',
   ordering: 'Sắp xếp',
   drag_word: 'Kéo thả từ',
+  word_order: 'Sắp xếp từ',
 }
 
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }

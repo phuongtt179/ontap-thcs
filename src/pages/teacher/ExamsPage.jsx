@@ -9,7 +9,7 @@ import {
   ToggleLeft, ToggleRight, Eye, RefreshCw,
 } from 'lucide-react'
 const DIFFICULTY_LABELS = { easy: 'Dễ', medium: 'Trung bình', hard: 'Khó' }
-const TYPE_LABELS = { multiple_choice: 'Trắc nghiệm', true_false: 'Đúng/Sai', fill_blank: 'Điền từ', matching: 'Nối đôi', ordering: 'Sắp xếp', drag_word: 'Kéo thả từ' }
+const TYPE_LABELS = { multiple_choice: 'Trắc nghiệm', true_false: 'Đúng/Sai', fill_blank: 'Điền từ', matching: 'Nối đôi', ordering: 'Sắp xếp', drag_word: 'Kéo thả từ', word_order: 'Sắp xếp từ' }
 
 /* ── ExamFormModal ─────────────────────────────────────────── */
 function ExamFormModal({ exam, onClose, onDone, defaultSubjectId }) {
@@ -432,8 +432,9 @@ export default function ExamsPage() {
 
   async function handleDelete(id, title) {
     if (!confirm(`Xóa đề thi "${title}"?`)) return
-    const { error } = await supabase.from('exams').delete().eq('id', id)
-    if (error) toast.error('Xóa thất bại')
+    const { data: deleted, error } = await supabase.from('exams').delete().eq('id', id).select()
+    if (error) toast.error('Xóa thất bại: ' + error.message)
+    else if (!deleted || deleted.length === 0) toast.error('Không có quyền xóa')
     else { toast.success('Đã xóa'); fetchExams() }
   }
 

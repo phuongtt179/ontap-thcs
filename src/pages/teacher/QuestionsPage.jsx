@@ -78,8 +78,9 @@ export default function QuestionsPage() {
 
   // Xóa câu hỏi khỏi database
   async function handleDelete(id) {
-    const { error } = await supabase.from('questions').delete().eq('id', id)
-    if (error) toast.error('Xóa thất bại')
+    const { data: deleted, error } = await supabase.from('questions').delete().eq('id', id).select()
+    if (error) toast.error('Xóa thất bại: ' + error.message)
+    else if (!deleted || deleted.length === 0) toast.error('Không có quyền xóa')
     else { toast.success('Đã xóa'); fetchQuestions() }
   }
 

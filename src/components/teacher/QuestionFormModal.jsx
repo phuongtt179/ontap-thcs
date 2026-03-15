@@ -99,7 +99,7 @@ export default function QuestionFormModal({ onClose, onDone, defaultSubjectId })
   const [form, setForm] = useState({
     type: 'multiple_choice',
     question: '',
-    grade: '3',
+    grade: '6',
     subject_id: defaultSubjectId || '',
     topic: '',
     difficulty: 'easy',
@@ -236,11 +236,11 @@ export default function QuestionFormModal({ onClose, onDone, defaultSubjectId })
 
         <div className="flex-1 overflow-auto p-6 space-y-4">
           {/* Type */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-0.5">
             {TYPES.map(t => (
               <button key={t.value}
                 onClick={() => setForm({ ...form, type: t.value, correct_answer: '' })}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition ${form.type === t.value ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                className={`px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition ${form.type === t.value ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                 {t.label}
               </button>
             ))}
@@ -257,9 +257,8 @@ export default function QuestionFormModal({ onClose, onDone, defaultSubjectId })
             <textarea value={form.question} onChange={e => setForm({ ...form, question: e.target.value })}
               rows={3} placeholder={form.type === 'drag_word' ? 'Ví dụ: Chuột là thiết bị ___ dữ liệu' : 'Nhập nội dung câu hỏi...'}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
-            <div className="mt-1.5 space-y-1.5">
+            <div className="mt-1.5 flex flex-wrap items-center gap-3">
               <ImageUpload value={form.image_url} onChange={v => setForm({ ...form, image_url: v })} />
-              {/* Upload âm thanh — hiện player nhỏ khi đã chọn file */}
               <AudioUpload value={form.audio_url} onChange={v => setForm({ ...form, audio_url: v })} />
             </div>
           </div>
@@ -279,18 +278,18 @@ export default function QuestionFormModal({ onClose, onDone, defaultSubjectId })
                 <label className="block text-sm font-medium text-gray-700 mb-1">Khối</label>
                 <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value, topic: '' })}
                   className="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  {['3','4','5'].map(g => <option key={g} value={g}>Khối {g}</option>)}
+                  {['6','7','8','9'].map(g => <option key={g} value={g}>Khối {g}</option>)}
                 </select>
               </div>
             </div>
           )}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {subjects.length === 0 && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Khối</label>
                 <select value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value, topic: '' })}
                   className="w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  {['3','4','5'].map(g => <option key={g} value={g}>Khối {g}</option>)}
+                  {['6','7','8','9'].map(g => <option key={g} value={g}>Khối {g}</option>)}
                 </select>
               </div>
             )}

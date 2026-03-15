@@ -9,6 +9,10 @@ const QUESTION_TYPES = {
   multiple_choice: 'Trắc nghiệm',
   true_false: 'Đúng / Sai',
   fill_blank: 'Điền từ',
+  matching: 'Nối đôi',
+  ordering: 'Sắp xếp',
+  drag_word: 'Kéo thả từ',
+  word_order: 'Sắp xếp từ',
 }
 
 export default function QuestionImportModal({ onClose, onSaved, grades, topics }) {
